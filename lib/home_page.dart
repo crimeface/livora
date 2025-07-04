@@ -19,6 +19,7 @@ import 'service_page.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geoflutterfire2/geoflutterfire2.dart';
 import 'features_map_search_page.dart';
+import 'premium_plans_page.dart';
 
 export 'profile_page.dart';
 export 'need_room_page.dart';
@@ -256,6 +257,8 @@ class _HomePageState extends State<HomePage>
   bool _isAdmin = false;
   List<Map<String, dynamic>> _banners = [];
   bool _bannersLoaded = false;
+  bool _hasPro = false;
+  bool _loadingPro = true;
 
   @override
   void initState() {
@@ -264,6 +267,7 @@ class _HomePageState extends State<HomePage>
     _loadProfileImage();
     _checkAdmin();
     _loadBanners();
+    _checkProPlan();
   }
 
   Future<void> _loadProfileImage() async {
@@ -299,7 +303,7 @@ class _HomePageState extends State<HomePage>
     if (user == null) return;
     // Use email to check admin, as in profile_page.dart
     const adminEmails = [
-      'campusnest12@gmail.com', // Replace with your actual admin email(s)
+      'livora.app@gmail.com', // Replace with your actual admin email(s)
       // Add more admin emails as needed
     ];
     setState(() {
@@ -359,6 +363,38 @@ class _HomePageState extends State<HomePage>
         _notifyBannersLoadedChanged();
       });
     }
+  }
+
+  Future<void> _checkProPlan() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        _hasPro = false;
+        _loadingPro = false;
+      });
+      return;
+    }
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    final now = DateTime.now();
+    bool hasPro = false;
+    if (userDoc.exists && userDoc.data() != null && userDoc.data()!.containsKey('plans')) {
+      final plansRaw = userDoc['plans'];
+      if (plansRaw is List) {
+        for (final plan in plansRaw) {
+          if (plan is Map<String, dynamic> &&
+              plan['name'] == 'Precision Pro' &&
+              plan['expiresAt'] != null &&
+              (plan['expiresAt'] as Timestamp).toDate().isAfter(now)) {
+            hasPro = true;
+            break;
+          }
+        }
+      }
+    }
+    setState(() {
+      _hasPro = hasPro;
+      _loadingPro = false;
+    });
   }
 
   void _notifyBannersLoadedChanged() {
@@ -615,6 +651,9 @@ class _HomePageState extends State<HomePage>
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   _buildUpdatedHeader(context),
+                  const SizedBox(height: BuddyTheme.spacingLg),
+                  _buildPremiumLocationSearchCard(context),
+                  const SizedBox(height: BuddyTheme.spacingLg),
                   _buildSectionHeader(context, 'Hostels & PGs'),
                   const SizedBox(height: BuddyTheme.spacingMd),
                   _buildHostelsBannerSection(context),
@@ -622,7 +661,7 @@ class _HomePageState extends State<HomePage>
                   _buildSectionHeader(context, 'Other Services'),
                   const SizedBox(height: BuddyTheme.spacingMd),
                   _buildServicesBannerSection(context),
-                  const SizedBox(height: BuddyTheme.spacingXl),
+                  const SizedBox(height: BuddyTheme.spacingLg),
                   _buildSectionHeader(context, 'Rooms'),
                   const SizedBox(height: BuddyTheme.spacingMd),
                   _buildRoomsBannerSection(context),
@@ -671,102 +710,64 @@ class _HomePageState extends State<HomePage>
                   ],
                 ),
               ),
-              // Profile Avatar with black circle border and tap functionality
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GestureDetector(
-                    onTap: () => widget.onTabChange?.call(3),
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: theme.brightness == Brightness.dark
-                              ? Colors.white.withOpacity(0.4)
-                              : Colors.black.withOpacity(0.4),
-                          width: 2,
-                        ),
-                      ),
-                      child: Container(
-                        margin: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: theme.brightness == Brightness.dark
-                              ? Colors.white.withOpacity(0.1)
-                              : Colors.black.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: ClipOval(
-                          child: _profileImageUrl != null
-                              ? CachedNetworkImage(
-                                  imageUrl: _profileImageUrl!,
-                                  width: 44,
-                                  height: 44,
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, url) => Container(
-                                    color: theme.colorScheme.surfaceVariant,
-                                    child: Icon(
-                                      Icons.person,
-                                      color: theme.colorScheme.primary,
-                                      size: 24,
-                                    ),
-                                  ),
-                                  errorWidget: (context, url, error) => Container(
-                                    color: theme.colorScheme.surfaceVariant,
-                                    child: Icon(
-                                      Icons.person,
-                                      color: theme.colorScheme.primary,
-                                      size: 24,
-                                    ),
-                                  ),
-                                )
-                              : Container(
-                                  color: theme.colorScheme.surfaceVariant,
-                                  child: Icon(
-                                    Icons.person,
-                                    color: theme.colorScheme.primary,
-                                    size: 24,
-                                  ),
-                                ),
-                        ),
-                      ),
+              // Profile Avatar with border and tap functionality
+              GestureDetector(
+                onTap: () => widget.onTabChange?.call(3),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: theme.brightness == Brightness.dark
+                          ? Colors.white.withOpacity(0.4)
+                          : Colors.black.withOpacity(0.4),
+                      width: 2,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  // Map Pin Button
-                  Material(
-                    color: Colors.transparent,
-                    shape: const CircleBorder(),
-                    child: IconButton(
-                      icon: const Icon(Icons.pin_drop, color: Colors.white),
-                      tooltip: 'Search Nearby',
-                      onPressed: () async {
-                        // New flow: Open map for pin drop and radius selection
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => MapLocationPicker(),
-                          ),
-                        );
-                        if (result != null && result is Map && result['location'] != null && result['radius'] != null) {
-                          final picked = result['location'];
-                          final selectedRadius = result['radius'];
-                          // Navigate to the new features map search page
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => FeaturesMapSearchPage(
-                                center: picked,
-                                radiusKm: selectedRadius,
+                  child: Container(
+                    margin: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: theme.brightness == Brightness.dark
+                          ? Colors.white.withOpacity(0.1)
+                          : Colors.black.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: ClipOval(
+                      child: _profileImageUrl != null
+                          ? CachedNetworkImage(
+                              imageUrl: _profileImageUrl!,
+                              width: 44,
+                              height: 44,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: theme.colorScheme.surfaceVariant,
+                                child: Icon(
+                                  Icons.person,
+                                  color: theme.colorScheme.primary,
+                                  size: 24,
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: theme.colorScheme.surfaceVariant,
+                                child: Icon(
+                                  Icons.person,
+                                  color: theme.colorScheme.primary,
+                                  size: 24,
+                                ),
+                              ),
+                            )
+                          : Container(
+                              color: theme.colorScheme.surfaceVariant,
+                              child: Icon(
+                                Icons.person,
+                                color: theme.colorScheme.primary,
+                                size: 24,
                               ),
                             ),
-                          );
-                        }
-                      },
                     ),
                   ),
-                ],
+                ),
               ),
             ],
           ),
@@ -1355,6 +1356,413 @@ class _HomePageState extends State<HomePage>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPremiumLocationSearchCard(BuildContext context) {
+    final theme = Theme.of(context);
+    if (_loadingPro) {
+      return Center(child: CircularProgressIndicator());
+    }
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4.0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            BuddyTheme.primaryColor.withOpacity(0.9),
+            BuddyTheme.primaryColor.withOpacity(0.7),
+            BuddyTheme.secondaryColor.withOpacity(0.8),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: BuddyTheme.primaryColor.withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () async {
+            if (!_hasPro) {
+              _showProBottomSheet(context);
+              return;
+            }
+            HapticFeedback.lightImpact();
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MapLocationPicker(),
+              ),
+            );
+            if (result != null && result is Map && result['location'] != null && result['radius'] != null) {
+              final picked = result['location'];
+              final selectedRadius = result['radius'];
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FeaturesMapSearchPage(
+                    center: picked,
+                    radiusKm: selectedRadius,
+                  ),
+                ),
+              );
+            }
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                // Left side - Icon and badge
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Premium badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.star,
+                            color: Colors.amber[600],
+                            size: 10,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            'PREMIUM',
+                            style: TextStyle(
+                              color: BuddyTheme.primaryColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 8,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Location icon with animation
+                    TweenAnimationBuilder(
+                      tween: Tween<double>(begin: 0, end: 1),
+                      duration: const Duration(milliseconds: 1500),
+                      builder: (context, double value, child) {
+                        return Transform.scale(
+                          scale: 0.8 + (0.2 * value),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.location_on,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                // Center - Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Search Nearby',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Find accommodations & services around your location',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 11,
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Right side - Action button
+                InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () async {
+                    if (!_hasPro) {
+                      _showProBottomSheet(context);
+                      return;
+                    }
+                    HapticFeedback.lightImpact();
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MapLocationPicker(),
+                      ),
+                    );
+                    if (result != null && result is Map && result['location'] != null && result['radius'] != null) {
+                      final picked = result['location'];
+                      final selectedRadius = result['radius'];
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FeaturesMapSearchPage(
+                            center: picked,
+                            radiusKm: selectedRadius,
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.pin_drop,
+                          color: Colors.white,
+                          size: 12,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Pin',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showProBottomSheet(BuildContext context) {
+    // Precision Pro details
+    const String proPrice = '₹99';
+    final List<String> proFeatures = [
+      'Pin Drop & Radius Search feature for hyper-targeted browsing',
+      'Unlimited Chat & Call access for 1 Month',
+    ];
+    final Color proColor = Colors.orangeAccent;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF2A2A2A),
+              Color(0xFF1A1A1A),
+            ],
+          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 50,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    proColor,
+                    proColor.withOpacity(0.7),
+                  ],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: proColor.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.location_searching,
+                color: Colors.white,
+                size: 40,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Precision Pro Required',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            // BEST VALUE badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    proColor.withOpacity(0.2),
+                    proColor.withOpacity(0.1),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: proColor.withOpacity(0.4),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                'BEST VALUE',
+                style: TextStyle(
+                  color: proColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Unlock Pin Drop & Radius Search and more with Precision Pro!',
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.white70,
+                height: 1.4,
+                letterSpacing: 0.2,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 18),
+            // Price
+            Text(
+              proPrice,
+              style: TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.bold,
+                color: proColor,
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Features
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: proFeatures.map((f) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('• ', style: TextStyle(color: Colors.white, fontSize: 13)),
+                    Expanded(
+                      child: Text(
+                        f,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )).toList(),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: proColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PremiumPlansPage(),
+                    ),
+                  );
+                },
+                child: const Text(
+                  'Buy Precision Pro',
+                  style: TextStyle(
+                    fontSize: 17,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Maybe Later',
+                style: TextStyle(color: Colors.white54),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -7,6 +7,8 @@ import 'package:share_plus/share_plus.dart';
 import '../theme.dart';
 import '../chat_screen.dart';
 import '../utils/user_utils.dart';
+import '../services/user_service.dart';
+import '../widgets/premium_plan_prompt_sheet.dart';
 
 class FullScreenImageGallery extends StatefulWidget {
   final List<String> images;
@@ -1457,6 +1459,15 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () async {
+                        if (!await UserService.hasActivePlan()) {
+                          showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Colors.transparent,
+                            isScrollControlled: true,
+                            builder: (ctx) => const PremiumPlanPromptSheet(),
+                          );
+                          return;
+                        }
                         final Uri phoneUri = Uri(
                           scheme: 'tel',
                           path: userPhone!,
@@ -1474,6 +1485,15 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () async {
+                        if (!await UserService.hasActivePlan()) {
+                          showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Colors.transparent,
+                            isScrollControlled: true,
+                            builder: (ctx) => const PremiumPlanPromptSheet(),
+                          );
+                          return;
+                        }
                         final otherUserId = propertyData.uid;
                         final otherUserName = propertyData.ownerName ?? 'User';
                         final currentUserId = FirebaseAuth.instance.currentUser?.uid;
@@ -1509,6 +1529,15 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () async {
+                    if (!await UserService.hasActivePlan()) {
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.transparent,
+                        isScrollControlled: true,
+                        builder: (ctx) => const PremiumPlanPromptSheet(),
+                      );
+                      return;
+                    }
                     final otherUserId = propertyData.uid;
                     final otherUserName = propertyData.ownerName ?? 'User';
                     final currentUserId = FirebaseAuth.instance.currentUser?.uid;

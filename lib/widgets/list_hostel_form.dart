@@ -585,6 +585,7 @@ class _ListHostelFormState extends State<ListHostelForm>
                     MaterialPageRoute(
                       builder: (context) => MapLocationPicker(
                         initialLocation: _pickedLocation,
+                        showRadiusPicker: false,
                       ),
                     ),
                   );

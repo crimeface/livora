@@ -6,6 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_plus/share_plus.dart';
 import '../theme.dart';
 import '../chat_screen.dart';
+import '../services/user_service.dart';
+import '../widgets/premium_plan_prompt_sheet.dart';
 
 class FullScreenImageGallery extends StatefulWidget {
   final List<String> images;
@@ -1352,6 +1354,15 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () async {
+                  if (!await UserService.hasActivePlan()) {
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      isScrollControlled: true,
+                      builder: (ctx) => const PremiumPlanPromptSheet(),
+                    );
+                    return;
+                  }
                   final Uri phoneUri = Uri(
                     scheme: 'tel',
                     path: serviceData.contact,
@@ -1369,6 +1380,15 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () async {
+                  if (!await UserService.hasActivePlan()) {
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      isScrollControlled: true,
+                      builder: (ctx) => const PremiumPlanPromptSheet(),
+                    );
+                    return;
+                  }
                   final otherUserId = serviceData.userId;
                   final otherUserName = serviceData.serviceName ?? 'User';
                   final currentUserId = FirebaseAuth.instance.currentUser?.uid;

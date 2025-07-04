@@ -1,7 +1,97 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class PremiumPlansPage extends StatelessWidget {
+class PremiumPlansPage extends StatefulWidget {
   const PremiumPlansPage({Key? key}) : super(key: key);
+
+  @override
+  State<PremiumPlansPage> createState() => _PremiumPlansPageState();
+}
+
+class _PremiumPlansPageState extends State<PremiumPlansPage> {
+  List<Map<String, dynamic>> userPlans = [];
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserPlans();
+  }
+
+  // Helper to get plan duration in days
+  int _planDurationDays(String plan) {
+    switch (plan) {
+      case 'Express Hunt':
+        return 7;
+      case 'Prime Seeker':
+      case 'Precision Pro':
+        return 30;
+      default:
+        return 0;
+    }
+  }
+
+  // Helper to get active plan names
+  List<String> get activePlanNames {
+    final now = DateTime.now();
+    return userPlans
+        .where((plan) => plan['expiresAt'] != null && (plan['expiresAt'] as Timestamp).toDate().isAfter(now))
+        .map((plan) => plan['name'] as String)
+        .toList();
+  }
+
+  Future<void> _fetchUserPlans() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        userPlans = [];
+        loading = false;
+      });
+      return;
+    }
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    if (userDoc.exists && userDoc.data() != null && userDoc.data()!.containsKey('plans')) {
+      final plansRaw = userDoc['plans'];
+      if (plansRaw is List) {
+        setState(() {
+          userPlans = plansRaw.cast<Map<String, dynamic>>();
+          loading = false;
+        });
+      } else {
+        setState(() {
+          userPlans = [];
+          loading = false;
+        });
+      }
+    } else {
+      setState(() {
+        userPlans = [];
+        loading = false;
+      });
+    }
+  }
+
+  Future<void> _addPlanToUser(String plan) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final now = DateTime.now();
+    final expiresAt = now.add(Duration(days: _planDurationDays(plan)));
+    final planObj = {
+      'name': plan,
+      'activatedAt': Timestamp.fromDate(now),
+      'expiresAt': Timestamp.fromDate(expiresAt),
+    };
+    // Remove any expired or duplicate plan with the same name
+    List<Map<String, dynamic>> updatedPlans = List<Map<String, dynamic>>.from(userPlans);
+    updatedPlans.removeWhere((p) => p['name'] == plan);
+    updatedPlans.add(planObj);
+    await userDoc.set({
+      'plans': updatedPlans
+    }, SetOptions(merge: true));
+    await _fetchUserPlans();
+  }
 
   void _showUpgradeSheet(BuildContext context, String upgradeTitle, String upgradeTagline, VoidCallback onUpgrade, VoidCallback onContinue, String continueLabel) {
     showModalBottomSheet(
@@ -26,7 +116,6 @@ class PremiumPlansPage extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Drag indicator
               Container(
                 width: 50,
                 height: 4,
@@ -36,8 +125,6 @@ class PremiumPlansPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              
-              // Icon with glow effect
               Container(
                 width: 80,
                 height: 80,
@@ -66,8 +153,6 @@ class PremiumPlansPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              
-              // Title with better typography
               Text(
                 upgradeTitle,
                 style: const TextStyle(
@@ -79,8 +164,6 @@ class PremiumPlansPage extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
-              
-              // Tagline with better styling
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
@@ -95,11 +178,8 @@ class PremiumPlansPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
-              
-              // Enhanced buttons with better spacing and design
               Column(
                 children: [
-                  // Upgrade button (primary)
                   SizedBox(
                     width: double.infinity,
                     child: Container(
@@ -155,8 +235,6 @@ class PremiumPlansPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
-                  // Continue button (secondary)
                   SizedBox(
                     width: double.infinity,
                     child: Container(
@@ -199,18 +277,6 @@ class PremiumPlansPage extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              
-              // Small disclaimer text
-              Text(
-                'Choose the plan that works best for you',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.white.withOpacity(0.5),
-                  fontStyle: FontStyle.italic,
-                ),
-                textAlign: TextAlign.center,
-              ),
             ],
           ),
         ),
@@ -220,81 +286,17 @@ class PremiumPlansPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final plans = [
-      _PlanCard(
-        title: 'Express Hunt',
-        subtitle: '',
-        tagline: 'Quick access. Fast results. Start your property hunt today.',
-        price: '₹29',
-        features: [
-          'Unlimited Chat & Call access for 7 Days',
-        ],
-        color: Colors.lightBlueAccent,
-        icon: Icons.flash_on,
-        buttonLabel: 'Buy Now',
-        onBuy: () {
-          _showUpgradeSheet(
-            context,
-            'Buy Prime Seeker for More Benefits',
-            'Unlock a full month of seamless connections and smarter searches.',
-            () {
-              Navigator.of(context).pop();
-              // TODO: Handle upgrade to Prime Seeker
-            },
-            () {
-              Navigator.of(context).pop();
-              // TODO: Continue with Express Hunt purchase
-            },
-            'Continue with Express Hunt',
-          );
-        },
-      ),
-      _PlanCard(
-        title: 'Prime Seeker',
-        subtitle: '',
-        tagline: 'Unlock a full month of seamless connections and smarter searches.',
-        price: '₹49',
-        features: [
-          'Unlimited Chat & Call access for 1 Month',
-        ],
-        color: Colors.green,
-        icon: Icons.star,
-        buttonLabel: 'Buy Now',
-        onBuy: () {
-          _showUpgradeSheet(
-            context,
-            'Buy Precision Pro for Ultimate Benefits',
-            'Search exactly where you want. Connect with who you need.',
-            () {
-              Navigator.of(context).pop();
-              // TODO: Handle upgrade to Precision Pro
-            },
-            () {
-              Navigator.of(context).pop();
-              // TODO: Continue with Prime Seeker purchase
-            },
-            'Continue with Prime Seeker',
-          );
-        },
-      ),
-      _PlanCard(
-        title: 'Precision Pro',
-        subtitle: '',
-        tagline: 'Search exactly where you want. Connect with who you need.',
-        price: '₹99',
-        features: [
-          'Pin Drop & Radius Search feature for hyper-targeted browsing',
-          'Unlimited Chat & Call access for 1 Month',
-        ],
-        color: Colors.orangeAccent,
-        icon: Icons.location_searching,
-        buttonLabel: 'Buy Now',
-        isPro: true,
-        onBuy: () {
-          // TODO: Handle Precision Pro purchase directly
-        },
-      ),
-    ];
+    if (loading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF121212),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final activePlans = activePlanNames;
+    bool hasExpress = activePlans.contains('Express Hunt');
+    bool hasPrime = activePlans.contains('Prime Seeker');
+    bool hasPro = activePlans.contains('Precision Pro');
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
@@ -321,17 +323,95 @@ class PremiumPlansPage extends StatelessWidget {
             ],
           ),
         ),
-        child: ListView.separated(
-          itemCount: plans.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 20),
-          itemBuilder: (context, i) => plans[i],
+        child: ListView(
+          children: [
+            _PlanCard(
+              title: 'Express Hunt',
+              subtitle: '',
+              tagline: 'Quick access. Fast results. Start your property hunt today.',
+              price: '₹29',
+              features: [
+                'Unlimited Chat & Call access for 7 Days',
+              ],
+              color: Colors.lightBlueAccent,
+              icon: Icons.flash_on,
+              buttonLabel: hasExpress ? 'Owned' : 'Buy Now',
+              onBuy: hasExpress
+                  ? null
+                  : () {
+                      _showUpgradeSheet(
+                        context,
+                        'Buy Prime Seeker for More Benefits',
+                        'Unlock a full month of seamless connections and smarter searches.',
+                        () async {
+                          Navigator.of(context).pop();
+                          await _addPlanToUser('Prime Seeker');
+                        },
+                        () async {
+                          Navigator.of(context).pop();
+                          await _addPlanToUser('Express Hunt');
+                        },
+                        'Continue with Express Hunt',
+                      );
+                    },
+            ),
+            const SizedBox(height: 20),
+            _PlanCard(
+              title: 'Prime Seeker',
+              subtitle: '',
+              tagline: 'Unlock a full month of seamless connections and smarter searches.',
+              price: '₹49',
+              features: [
+                'Unlimited Chat & Call access for 1 Month',
+              ],
+              color: Colors.green,
+              icon: Icons.star,
+              buttonLabel: hasPrime ? 'Owned' : 'Buy Now',
+              onBuy: hasPrime
+                  ? null
+                  : () {
+                      _showUpgradeSheet(
+                        context,
+                        'Buy Precision Pro for Ultimate Benefits',
+                        'Search exactly where you want. Connect with who you need.',
+                        () async {
+                          Navigator.of(context).pop();
+                          await _addPlanToUser('Precision Pro');
+                        },
+                        () async {
+                          Navigator.of(context).pop();
+                          await _addPlanToUser('Prime Seeker');
+                        },
+                        'Continue with Prime Seeker',
+                      );
+                    },
+            ),
+            const SizedBox(height: 20),
+            _PlanCard(
+              title: 'Precision Pro',
+              subtitle: '',
+              tagline: 'Search exactly where you want. Connect with who you need.',
+              price: '₹99',
+              features: [
+                'Pin Drop & Radius Search feature for hyper-targeted browsing',
+                'Unlimited Chat & Call access for 1 Month',
+              ],
+              color: Colors.orangeAccent,
+              icon: Icons.location_searching,
+              buttonLabel: hasPro ? 'Owned' : 'Buy Now',
+              onBuy: hasPro
+                  ? null
+                  : () async {
+                      await _addPlanToUser('Precision Pro');
+                    },
+              isPro: true,
+            ),
+          ],
         ),
       ),
     );
   }
 }
-
-
 
 class _PlanCard extends StatelessWidget {
   final String title;

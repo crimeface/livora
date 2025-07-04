@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'splash_screen.dart';
 import 'home_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'phone_verification.dart';
 
 class SplashScreenWrapper extends StatefulWidget {
   const SplashScreenWrapper({Key? key}) : super(key: key);
@@ -14,11 +16,14 @@ class _SplashScreenWrapperState extends State<SplashScreenWrapper> {
   bool _bannersLoaded = false;
   bool _showSplash = true;
   List<Map<String, dynamic>> _banners = [];
+  bool _userDocChecked = false;
+  bool _userDocExists = false;
 
   @override
   void initState() {
     super.initState();
     _loadBanners();
+    _checkUserDoc();
     
     // Add a safety timeout to prevent getting stuck
     Future.delayed(const Duration(seconds: 15), () {
@@ -138,12 +143,37 @@ class _SplashScreenWrapperState extends State<SplashScreenWrapper> {
     }
   }
 
+  Future<void> _checkUserDoc() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      setState(() {
+        _userDocChecked = true;
+        _userDocExists = doc.exists;
+      });
+    } else {
+      setState(() {
+        _userDocChecked = true;
+        _userDocExists = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_showSplash) {
+    if (_showSplash || !_userDocChecked) {
       return const SplashScreen();
     } else {
-      return const HomeScreen();
+      if (FirebaseAuth.instance.currentUser == null) {
+        // Not authenticated, let AuthStateHandler handle onboarding/login
+        return const SplashScreen();
+      } else if (!_userDocExists) {
+        // Authenticated but Firestore user doc missing, force to phone verification (name input)
+        return PhoneVerificationPage();
+      } else {
+        // Authenticated and Firestore user doc exists
+        return const HomeScreen();
+      }
     }
   }
 } 

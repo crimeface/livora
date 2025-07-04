@@ -596,6 +596,7 @@ class _ListServiceFormState extends State<ListServiceForm>
                   MaterialPageRoute(
                     builder: (context) => MapLocationPicker(
                       initialLocation: _pickedLocation,
+                      showRadiusPicker: false,
                     ),
                   ),
                 );

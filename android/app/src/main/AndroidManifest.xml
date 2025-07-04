@@ -47,7 +47,7 @@
         android:name="com.google.firebase.messaging.default_notification_channel_id"
         android:value="chat_notifications" />
         <meta-data android:name="com.google.android.geo.API_KEY"
-                   android:value="AIzaSyCD4EL2AxcBHHB6xlj7PY7hzx-QjQ8iTM8"/>
+                   android:value="AIzaSyApSrEUQP_oJKIx0NliYXH85gpOU3ymwXk"/>
 
     </application>
     <!-- Required to query activities that can process text, see:

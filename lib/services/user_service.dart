@@ -122,4 +122,62 @@ class UserService {
       return [];
     }
   }
+
+  /// Check if current user has any active premium plan
+  static Future<bool> hasActivePlan() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    if (userDoc.exists && userDoc.data() != null && userDoc.data()!.containsKey('plans')) {
+      final plansRaw = userDoc['plans'];
+      if (plansRaw is List) {
+        final now = DateTime.now();
+        for (final plan in plansRaw) {
+          if (plan is Map && plan['expiresAt'] != null) {
+            final expiresAt = (plan['expiresAt'] as Timestamp).toDate();
+            if (expiresAt.isAfter(now)) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Check if current user has any active listing (not expired)
+  static Future<bool> hasActiveListing() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    final uid = user.uid;
+    final now = DateTime.now();
+    // Helper to check expiry
+    bool isActive(dynamic expiry) {
+      if (expiry == null) return true; // If no expiry, treat as active (legacy)
+      if (expiry is Timestamp) return expiry.toDate().isAfter(now);
+      if (expiry is String) {
+        final dt = DateTime.tryParse(expiry);
+        if (dt == null) return true;
+        return dt.isAfter(now);
+      }
+      return true;
+    }
+    // Check all listing types
+    final checks = [
+      FirebaseFirestore.instance.collection('room_listings').where('userId', isEqualTo: uid).get(),
+      FirebaseFirestore.instance.collection('hostel_listings').where('uid', isEqualTo: uid).get(),
+      FirebaseFirestore.instance.collection('service_listings').where('userId', isEqualTo: uid).get(),
+      FirebaseFirestore.instance.collection('roomRequests').where('userId', isEqualTo: uid).get(),
+    ];
+    for (final snapFuture in checks) {
+      final snap = await snapFuture;
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        if (isActive(data['expiryDate'])) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
 } 

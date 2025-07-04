@@ -12,6 +12,7 @@ import 'banner_changing.dart';
 import 'chat_list_screen.dart';
 import '../utils/cache_utils.dart';
 import 'premium_plans_page.dart';
+import 'services/user_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -328,23 +329,37 @@ class _ProfilePageState extends State<ProfilePage> {
             },
             isDark: isDark,
           ),
-          _buildMenuOption(
-            icon: Icons.person_outline,
-            iconColor: BuddyTheme.primaryColor,
-            title: 'Messages',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ChatListScreen(),
-                ),
-              );
+          FutureBuilder<List<bool>>(
+            future: Future.wait([
+              UserService.hasActiveListing(),
+              UserService.hasActivePlan(),
+            ]),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return SizedBox(); // Or a loading indicator if you prefer
+              }
+              if (snapshot.hasData && (snapshot.data![0] == true || snapshot.data![1] == true)) {
+                return _buildMenuOption(
+                  icon: Icons.person_outline,
+                  iconColor: BuddyTheme.primaryColor,
+                  title: 'Messages',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ChatListScreen(),
+                      ),
+                    );
+                  },
+                  isDark: isDark,
+                );
+              }
+              return SizedBox();
             },
-            isDark: isDark,
           ),
           // --- Add Change Price button here for admin ---
           if (FirebaseAuth.instance.currentUser?.email?.toLowerCase() ==
-              'campusnest12@gmail.com')
+              'livora.app@gmail.com')
             _buildMenuOption(
               icon: Icons.price_change,
               iconColor: Colors.green,
@@ -357,7 +372,7 @@ class _ProfilePageState extends State<ProfilePage> {
           // --- End Change Price button ---
           // --- Add Change Banner button here for admin ---
           if (FirebaseAuth.instance.currentUser?.email?.toLowerCase() ==
-              'campusnest12@gmail.com')
+              'livora.app@gmail.com')
             _buildMenuOption(
               icon: Icons.photo_library,
               iconColor: Colors.deepPurple,

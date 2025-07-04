@@ -4,7 +4,8 @@ import 'package:geolocator/geolocator.dart';
 
 class MapLocationPicker extends StatefulWidget {
   final LatLng? initialLocation;
-  const MapLocationPicker({Key? key, this.initialLocation}) : super(key: key);
+  final bool showRadiusPicker;
+  const MapLocationPicker({Key? key, this.initialLocation, this.showRadiusPicker = false}) : super(key: key);
 
   @override
   _MapLocationPickerState createState() => _MapLocationPickerState();
@@ -16,6 +17,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
   double _radius = 3.0;
   bool _isLoading = false;
   bool _showRadiusSheet = false;
+  bool _showConfirmButton = false;
 
   @override
   void initState() {
@@ -41,11 +43,10 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
   Future<void> _getCurrentLocationInBackground() async {
     try {
       LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      
-      if (permission == LocationPermission.deniedForever || permission == LocationPermission.denied) {
+      // Do NOT request permission, just check if already granted
+      if (permission == LocationPermission.deniedForever ||
+          permission == LocationPermission.denied ||
+          permission == LocationPermission.unableToDetermine) {
         return; // Keep the default location
       }
 
@@ -69,9 +70,13 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
   void _onPinDropped(LatLng latLng) {
     setState(() {
       _pickedLocation = latLng;
-      _showRadiusSheet = true;
+      if (widget.showRadiusPicker) {
+        _showRadiusSheet = true;
+        _showRadiusBottomSheet();
+      } else {
+        _showConfirmButton = true;
+      }
     });
-    _showRadiusBottomSheet();
   }
 
   void _showRadiusBottomSheet() async {
@@ -165,23 +170,38 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    
     return Scaffold(
       appBar: AppBar(title: Text('Pick Location')),
-      body: GoogleMap(
-        initialCameraPosition: CameraPosition(
-          target: _mapCenter!,
-          zoom: 11,
-        ),
-        onTap: _onPinDropped,
-        markers: _pickedLocation == null
-            ? {}
-            : {
-                Marker(
-                  markerId: MarkerId('picked'),
-                  position: _pickedLocation!,
-                ),
-              },
+      body: Stack(
+        children: [
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: _mapCenter!,
+              zoom: 11,
+            ),
+            onTap: _onPinDropped,
+            markers: _pickedLocation == null
+                ? {}
+                : {
+                    Marker(
+                      markerId: MarkerId('picked'),
+                      position: _pickedLocation!,
+                    ),
+                  },
+          ),
+          if (_showConfirmButton && _pickedLocation != null)
+            Positioned(
+              bottom: 32,
+              right: 24,
+              child: FloatingActionButton(
+                backgroundColor: Colors.blue,
+                child: Icon(Icons.check, color: Colors.white),
+                onPressed: () {
+                  Navigator.of(context).pop(_pickedLocation);
+                },
+              ),
+            ),
+        ],
       ),
     );
   }

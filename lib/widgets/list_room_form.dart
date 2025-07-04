@@ -662,7 +662,7 @@ class _ListRoomFormState extends State<ListRoomForm>
                   MaterialPageRoute(
                     builder:
                         (context) =>
-                            MapLocationPicker(initialLocation: _pickedLocation),
+                            MapLocationPicker(initialLocation: _pickedLocation, showRadiusPicker: false),
                   ),
                 );
                 if (result != null) {

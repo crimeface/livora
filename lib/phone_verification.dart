@@ -56,6 +56,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
     }
     super.dispose();
   }
+
   void _navigateToOTP() async {
     if (_phoneController.text.isNotEmpty) {
       setState(() {
@@ -114,6 +115,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
       }
     }
   }
+
   void _verifyOTP() async {
     String otp = _otpControllers.map((controller) => controller.text).join();
     if (otp.length == 6) {
@@ -130,7 +132,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
         // Sign in with credential
         UserCredential userCredential = await _auth.signInWithCredential(credential);
         
-        // Check if user exists in Firestore
+        // Check if user exists in Firestore and has both username and phone
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(userCredential.user!.uid)
@@ -140,13 +142,17 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
           _isLoading = false;
         });
 
-        if (userDoc.exists) {
-          // User already exists, redirect to homepage
+        final userData = userDoc.data() as Map<String, dynamic>?;
+        final hasName = userData != null && userData['username'] != null && (userData['username'] as String).trim().isNotEmpty;
+        final hasPhone = userData != null && userData['phone'] != null && (userData['phone'] as String).trim().isNotEmpty;
+
+        if (userDoc.exists && hasName && hasPhone) {
+          // User already exists and profile is complete, redirect to homepage
           if (mounted) {
             Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
           }
         } else {
-          // New user, continue to name input page
+          // New user or incomplete profile, continue to name input page
           setState(() {
             currentPage = 2;
           });
@@ -391,10 +397,20 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
               _buildFullNamePage(),
             ],
           ),
+          if (_isLoading)
+            Container(
+              color: Colors.black26,
+              child: Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
+
   Widget _buildPhoneInputPage() {
     return SingleChildScrollView(
       padding: EdgeInsets.all(24),
@@ -509,7 +525,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
               ],
             ),
             child: ElevatedButton(
-              onPressed: _navigateToOTP,
+              onPressed: _isLoading ? null : _navigateToOTP,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 foregroundColor: Colors.white,
@@ -519,13 +535,22 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(
-                'Receive OTP',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: _isLoading
+                  ? SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text(
+                      'Receive OTP',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -576,7 +601,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
           
           SizedBox(height: 50),
           
-          // OTP Input Fields
+          // OTP Input Fields - Updated with better backspace handling
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: List.generate(6, (index) {
@@ -618,39 +643,34 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
                   ),
                   onChanged: (value) {
                     if (value.isNotEmpty) {
-                      // Clear any extra characters and keep only the first digit
-                      if (value.length > 1) {
-                        _otpControllers[index].text = value[0];
-                        _otpControllers[index].selection = TextSelection.fromPosition(
-                          TextPosition(offset: 1),
-                        );
-                        return;
-                      }
-                      // Move to next field
-                      if (index < 5) {
-                        FocusScope.of(context).nextFocus();
-                      } else {
-                        // Last field, remove focus
-                        FocusScope.of(context).unfocus();
+                      // If user enters a digit, move to next field
+                      if (value.length == 1) {
+                        if (index < 5) {
+                          FocusScope.of(context).nextFocus();
+                        } else {
+                          // Last field, remove focus
+                          FocusScope.of(context).unfocus();
+                        }
                       }
                     } else {
-                      // Handle backspace - move to previous field
+                      // If field becomes empty (backspace was pressed)
+                      // Move to previous field if it exists
                       if (index > 0) {
                         FocusScope.of(context).previousFocus();
                       }
                     }
                   },
                   onTap: () {
-                    // Clear the field when tapped
-                    _otpControllers[index].clear();
-                  },
-                  onEditingComplete: () {
-                    if (index < 5 && _otpControllers[index].text.isNotEmpty) {
-                      FocusScope.of(context).nextFocus();
+                    // When tapped, select all text for easy replacement
+                    if (_otpControllers[index].text.isNotEmpty) {
+                      _otpControllers[index].selection = TextSelection(
+                        baseOffset: 0,
+                        extentOffset: _otpControllers[index].text.length,
+                      );
                     }
                   },
                 ),
-                );
+              );
             }),
           ),
           
@@ -699,7 +719,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
               ],
             ),
             child: ElevatedButton(
-              onPressed: _verifyOTP,
+              onPressed: _isLoading ? null : _verifyOTP,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 foregroundColor: Colors.white,
@@ -709,13 +729,22 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(
-                'Verify & Proceed',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: _isLoading
+                  ? SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text(
+                      'Verify & Proceed',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -815,7 +844,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
               ],
             ),
             child: ElevatedButton(
-              onPressed: _submitFullName,
+              onPressed: _isLoading ? null : _submitFullName,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 foregroundColor: Colors.white,
@@ -825,13 +854,22 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(
-                'Complete Registration',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: _isLoading
+                  ? SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text(
+                      'Complete Registration',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
             ),
           ),
         ],

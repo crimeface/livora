@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme.dart';
 import '../chat_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/user_service.dart';
+import '../widgets/premium_plan_prompt_sheet.dart';
 
 class FlatmateDetailsPage extends StatefulWidget {
   final Map<String, dynamic> flatmateData;
@@ -518,6 +520,15 @@ class _FlatmateDetailsPageState extends State<FlatmateDetailsPage> {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () async {
+                  if (!await UserService.hasActivePlan()) {
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      isScrollControlled: true,
+                      builder: (ctx) => const PremiumPlanPromptSheet(),
+                    );
+                    return;
+                  }
                   final Uri phoneUri = Uri(
                     scheme: 'tel',
                     path: widget.flatmateData['phone'] ?? '',
@@ -535,6 +546,15 @@ class _FlatmateDetailsPageState extends State<FlatmateDetailsPage> {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () async {
+                  if (!await UserService.hasActivePlan()) {
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      isScrollControlled: true,
+                      builder: (ctx) => const PremiumPlanPromptSheet(),
+                    );
+                    return;
+                  }
                   final otherUserId = widget.flatmateData['userId'];
                   final otherUserName = widget.flatmateData['name'] ?? 'User';
                   final currentUserId = FirebaseAuth.instance.currentUser?.uid;

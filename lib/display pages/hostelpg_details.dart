@@ -8,6 +8,8 @@ import '../theme.dart';
 import '../models/hostel_data.dart';
 import '../chat_screen.dart';
 import '../utils/user_utils.dart';
+import '../services/user_service.dart';
+import '../widgets/premium_plan_prompt_sheet.dart';
 
 class FullScreenImageGallery extends StatefulWidget {
   final List<String> images;
@@ -1302,6 +1304,15 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () async {
+                        if (!await UserService.hasActivePlan()) {
+                          showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Colors.transparent,
+                            isScrollControlled: true,
+                            builder: (ctx) => const PremiumPlanPromptSheet(),
+                          );
+                          return;
+                        }
                         final Uri phoneUri = Uri(
                           scheme: 'tel',
                           path: userPhone!,
@@ -1319,6 +1330,15 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () async {
+                        if (!await UserService.hasActivePlan()) {
+                          showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Colors.transparent,
+                            isScrollControlled: true,
+                            builder: (ctx) => const PremiumPlanPromptSheet(),
+                          );
+                          return;
+                        }
                         final otherUserId = hostelData.uid;
                         final otherUserName = hostelData.contactPerson ?? 'User';
                         final currentUserId = FirebaseAuth.instance.currentUser?.uid;
@@ -1354,6 +1374,15 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () async {
+                    if (!await UserService.hasActivePlan()) {
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.transparent,
+                        isScrollControlled: true,
+                        builder: (ctx) => const PremiumPlanPromptSheet(),
+                      );
+                      return;
+                    }
                     final otherUserId = hostelData.uid;
                     final otherUserName = hostelData.contactPerson ?? 'User';
                     final currentUserId = FirebaseAuth.instance.currentUser?.uid;

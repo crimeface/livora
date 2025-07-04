@@ -12,6 +12,7 @@ class LocationAutocompleteField extends StatefulWidget {
   final int maxLines;
   final Function(AutocompleteResult)? onLocationSelected;
   final String? initialValue;
+  final Function(bool)? onFocusChanged;
 
   const LocationAutocompleteField({
     Key? key,
@@ -22,6 +23,7 @@ class LocationAutocompleteField extends StatefulWidget {
     this.maxLines = 1,
     this.onLocationSelected,
     this.initialValue,
+    this.onFocusChanged,
   }) : super(key: key);
 
   @override
@@ -74,6 +76,7 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
     setState(() {
       _showSuggestions = _focusNode.hasFocus && _suggestions.isNotEmpty;
     });
+    widget.onFocusChanged?.call(_focusNode.hasFocus);
     _startSessionIfNeeded();
   }
 
