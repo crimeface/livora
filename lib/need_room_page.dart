@@ -1,11 +1,13 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'theme.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'main.dart'; // Add this import
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'services/search_cache_service.dart';
+import 'package:shimmer/shimmer.dart';
 
 class NeedRoomPage extends StatefulWidget {
   const NeedRoomPage({Key? key}) : super(key: key);
@@ -62,6 +64,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
 
   List<Map<String, dynamic>> _rooms = []; // <-- Now fetched from Firebase
   bool _isLoading = true;
+  int? _hoveredRoomCardIndex;
 
   @override
   void initState() {
@@ -279,48 +282,24 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                               accentColor,
                             ),
                             const SizedBox(height: BuddyTheme.spacingMd),
-                            ...(_filteredRooms.isEmpty
-                                ? [
-                                  Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 40,
-                                      ),
-                                      child: Text(
-                                        'No rooms found',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          color: textPrimary.withOpacity(0.7),
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
+                            if (_filteredRooms.isEmpty)
+                              Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 40,
+                                  ),
+                                  child: Text(
+                                    'No rooms found',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: textPrimary.withOpacity(0.7),
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                ]
-                                : _filteredRooms
-                                    .map(
-                                      (room) => Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: BuddyTheme.spacingMd,
-                                        ),
-                                        child: _buildRoomCard(
-                                          room,
-                                          cardColor,
-                                          borderColor,
-                                          textLight,
-                                          textPrimary,
-                                          textSecondary,
-                                          accentColor,
-                                          primaryColor,
-                                          const Color(
-                                            0xFF181A20,
-                                          ), // Use dark background for cards too
-                                          successColor,
-                                          warningColor,
-                                        ),
-                                      ),
-                                    )
-                                    .toList()),
+                                ),
+                              )
+                            else
+                              _buildRoomsGrid(),
                             SizedBox(height: BuddyTheme.spacingMd + MediaQuery.of(context).padding.bottom),
                           ],
                         ),
@@ -535,6 +514,266 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
   }
   // Removed unused _buildRoomListings method
 
+  Widget _buildRoomsGrid() {
+    if (kIsWeb) {
+      const double cardSpacing = 20.0;
+      const int crossAxisCount = 3;
+      final double gridWidth = MediaQuery.of(context).size.width - (BuddyTheme.spacingMd * 2);
+      final double cardSize = (gridWidth - (cardSpacing * (crossAxisCount - 1))) / crossAxisCount;
+      if (_filteredRooms.length < 3) {
+        // Left-align 1 or 2 cards
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: List.generate(_filteredRooms.length, (index) {
+              final room = _filteredRooms[index];
+              return Padding(
+                padding: EdgeInsets.only(right: index < _filteredRooms.length - 1 ? cardSpacing : 0),
+                child: _buildRoomCardWeb(room, index, cardSize),
+              );
+            }),
+          ),
+        );
+      } else {
+        // 3 or more: use grid
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: 320 / 200,
+            crossAxisSpacing: cardSpacing,
+            mainAxisSpacing: cardSpacing,
+          ),
+          itemCount: _filteredRooms.length,
+          itemBuilder: (context, index) {
+            final room = _filteredRooms[index];
+            return _buildRoomCardWeb(room, index, cardSize);
+          },
+        );
+      }
+    } else {
+      // Mobile layout: single column
+      return Column(
+        children: _filteredRooms
+            .map(
+              (room) => Padding(
+                padding: const EdgeInsets.only(
+                  bottom: BuddyTheme.spacingMd,
+                ),
+                child: _buildRoomCard(
+                  room,
+                  const Color(0xFF23262F),
+                  Colors.white12,
+                  Colors.white38,
+                  Colors.white,
+                  Colors.white70,
+                  const Color(0xFF64B5F6),
+                  const Color(0xFF90CAF9),
+                  const Color(0xFF181A20),
+                  const Color(0xFF81C784),
+                  const Color(0xFFFFB74D),
+                ),
+              ),
+            )
+            .toList(),
+      );
+    }
+  }
+
+  Widget _buildPlaceholderCard() {
+    // Optimized sizes for web and mobile
+    final isWeb = kIsWeb;
+    final double imageHeight = isWeb ? 140.0 : 240.0;
+    final double padding = isWeb ? 16.0 : 20.0;
+    final double titleHeight = isWeb ? 18.0 : 22.0;
+    final double addressHeight = isWeb ? 14.0 : 18.0;
+    final double buttonHeight = isWeb ? 36.0 : 44.0;
+    final double spacing = isWeb ? 6.0 : 10.0;
+    final double buttonSpacing = isWeb ? 12.0 : 18.0;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF23262F),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Placeholder image
+          Container(
+            height: imageHeight,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white12,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+            ),
+            child: Icon(
+              Icons.image_outlined,
+              color: Colors.white38,
+              size: isWeb ? 32 : 48,
+            ),
+          ),
+          // Placeholder content
+          Padding(
+            padding: EdgeInsets.all(padding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: titleHeight,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white12,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                SizedBox(height: spacing),
+                Container(
+                  height: addressHeight,
+                  width: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.white12,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                SizedBox(height: buttonSpacing),
+                Container(
+                  height: buttonHeight,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white12,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoomCardWeb(Map<String, dynamic> room, int index, double cardSize) {
+    final double cardWidth = 320.0;
+    final double imageHeight = 140.0;
+    // Get the image URL from the firstPhoto field or try to find one from uploadedPhotos
+    String? imageUrl = room['firstPhoto'] as String?;
+    if (imageUrl == null && room['uploadedPhotos'] != null) {
+      final photos = room['uploadedPhotos'];
+      if (photos is Map<String, dynamic>) {
+        for (final categoryPhotos in photos.values) {
+          if (categoryPhotos is List && categoryPhotos.isNotEmpty) {
+            imageUrl = categoryPhotos[0] as String;
+            break;
+          }
+        }
+      } else if (photos is List) {
+        if (photos.isNotEmpty) {
+          imageUrl = photos[0].toString();
+        }
+      }
+    }
+    if (imageUrl == null && room['imageUrl'] != null && room['imageUrl'].toString().isNotEmpty) {
+      imageUrl = room['imageUrl'].toString();
+    }
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hoveredRoomCardIndex = index),
+      onExit: (_) => setState(() => _hoveredRoomCardIndex = null),
+      child: GestureDetector(
+        onTap: () {
+          // TODO: Implement navigation to room details if needed
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          transform: _hoveredRoomCardIndex == index ? (Matrix4.identity()..scale(1.04)) : Matrix4.identity(),
+          decoration: BoxDecoration(
+            color: const Color(0xFF23262F),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.12),
+                blurRadius: _hoveredRoomCardIndex == index ? 32 : 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          width: cardWidth,
+          margin: const EdgeInsets.only(bottom: 32.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(18),
+                  topRight: Radius.circular(18),
+                ),
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl ?? '',
+                  height: imageHeight,
+                  width: cardWidth,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Shimmer.fromColors(
+                    baseColor: Colors.white12,
+                    highlightColor: const Color(0xFF23262F),
+                    child: Container(color: Colors.white12, height: imageHeight, width: cardWidth),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.white12,
+                    height: imageHeight,
+                    width: cardWidth,
+                    child: Icon(
+                      Icons.image_not_supported_outlined,
+                      color: Colors.white38,
+                      size: 40,
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      room['title'] ?? '',
+                      style: const TextStyle(
+                        fontSize: 17.0,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        height: 1.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4.0),
+                    Text(
+                      room['location'] ?? '',
+                      style: const TextStyle(
+                        fontSize: 13.0,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildRoomCard(
     Map<String, dynamic> room,
     Color cardColor,
@@ -548,6 +787,20 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
     Color successColor,
     Color warningColor,
   ) {
+    // Optimized sizes for web and mobile
+    final isWeb = kIsWeb;
+    final double imageHeight = isWeb ? 140.0 : 240.0;
+    final double padding = isWeb ? 16.0 : 20.0;
+    final double titleFontSize = isWeb ? 18.0 : 22.0;
+    final double priceFontSize = isWeb ? 16.0 : 20.0;
+    final double addressFontSize = isWeb ? 13.0 : 16.0;
+    final double buttonFontSize = isWeb ? 14.0 : 16.0;
+    final double buttonPadding = isWeb ? 10.0 : 14.0;
+    final double spacing = isWeb ? 6.0 : 10.0;
+    final double buttonSpacing = isWeb ? 12.0 : 18.0;
+    final double iconSize = isWeb ? 16.0 : 20.0;
+    final double badgePadding = isWeb ? 6.0 : 8.0;
+
     // Get the image URL from the firstPhoto field or try to find one from uploadedPhotos
     String? imageUrl = room['firstPhoto'] as String?;
     if (imageUrl == null && room['uploadedPhotos'] != null) {
@@ -601,12 +854,12 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                   ),
                   child: CachedNetworkImage(
                     imageUrl: imageUrl,
-                    height: 200,
+                    height: imageHeight,
                     width: double.infinity,
                     fit: BoxFit.cover,
                     placeholder:
                         (context, url) => Container(
-                          height: 200,
+                          height: imageHeight,
                           color: borderColor,
                           child: Center(
                             child: CircularProgressIndicator(
@@ -616,19 +869,19 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                         ),
                     errorWidget:
                         (context, url, error) => Container(
-                          height: 200,
+                          height: imageHeight,
                           color: borderColor,
                           child: Icon(
                             Icons.image_not_supported_outlined,
                             color: textLight,
-                            size: 48,
+                            size: isWeb ? 40 : 56,
                           ),
                         ),
                   ),
                 )
               else
                 Container(
-                  height: 200,
+                  height: imageHeight,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: borderColor,
@@ -637,7 +890,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                       topRight: Radius.circular(16),
                     ),
                   ),
-                  child: Icon(Icons.image, color: textLight, size: 48),
+                  child: Icon(Icons.image, color: textLight, size: isWeb ? 40 : 56),
                 ),
 
               // Available Now badge
@@ -645,9 +898,9 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                 left: 12,
                 bottom: 12,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: badgePadding,
+                    vertical: badgePadding / 2,
                   ),
                 ),
               ),
@@ -656,7 +909,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
 
           // Content section
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(padding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -670,14 +923,16 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                       child: Text(
                         room['title'] ?? 'Property Name',
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: titleFontSize,
                           fontWeight: FontWeight.w700,
                           color: textPrimary,
                           height: 1.2,
                         ),
+                        maxLines: isWeb ? 1 : 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: isWeb ? 8 : 12),
                     // Price
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -688,7 +943,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                               TextSpan(
                                 text: '\₹${room['rent'] ?? '120'}',
                                 style: TextStyle(
-                                  fontSize: 24,
+                                  fontSize: priceFontSize,
                                   fontWeight: FontWeight.w700,
                                   color: textPrimary,
                                 ),
@@ -696,7 +951,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                               TextSpan(
                                 text: '/mo',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: isWeb ? 12.0 : 16.0,
                                   fontWeight: FontWeight.w500,
                                   color: textSecondary,
                                 ),
@@ -709,7 +964,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                   ],
                 ),
 
-                const SizedBox(height: 8),
+                SizedBox(height: spacing),
 
                 // Location
                 Row(
@@ -717,31 +972,33 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                     Icon(
                       Icons.location_on_outlined,
                       color: textSecondary,
-                      size: 16,
+                      size: iconSize,
                     ),
-                    const SizedBox(width: 4),
+                    SizedBox(width: spacing / 2),
                     Expanded(
                       child: Text(
                         room['location'] ?? 'Location',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: addressFontSize,
                           color: textSecondary,
                           fontWeight: FontWeight.w500,
                         ),
+                        maxLines: isWeb ? 1 : 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 16),
+                SizedBox(height: buttonSpacing),
 
                 Row(
                   children: [
                     // Room type tag
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: badgePadding,
+                        vertical: badgePadding / 2,
                       ),
                       decoration: BoxDecoration(
                         color: accentColor,
@@ -751,21 +1008,21 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                       ),
                       child: Text(
                         room['roomType'] ?? 'Shared',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 12,
+                          fontSize: isWeb ? 12 : 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
 
-                    const SizedBox(width: 8),
+                    SizedBox(width: spacing),
 
                     // Flat size tag
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: badgePadding,
+                        vertical: badgePadding / 2,
                       ),
                       decoration: BoxDecoration(
                         color: textSecondary.withOpacity(0.1),
@@ -780,7 +1037,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                         room['flatSize'] ?? '2 Beds',
                         style: TextStyle(
                           color: textSecondary,
-                          fontSize: 12,
+                          fontSize: isWeb ? 12 : 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -788,9 +1045,7 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                   ],
                 ),
 
-                const SizedBox(height: 16),
-
-                const SizedBox(height: 16),
+                SizedBox(height: buttonSpacing),
 
                 // View Details button
                 SizedBox(
@@ -807,15 +1062,15 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
                       backgroundColor: accentColor,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: EdgeInsets.symmetric(vertical: buttonPadding),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
+                    child: Text(
                       'View Details',
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: buttonFontSize,
                         fontWeight: FontWeight.w600,
                       ),
                     ),

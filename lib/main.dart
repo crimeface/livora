@@ -23,6 +23,8 @@ import 'api/firebase_api.dart'; // Import Firebase API for notifications
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'splash_screen_wrapper.dart'; // Import the new splash screen wrapper
 import 'chat_screen.dart'; // Import chat screen for notification navigation
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'landing_page_web.dart';
 
 // Add RouteObserver
 final RouteObserver<ModalRoute<void>> routeObserver =
@@ -31,7 +33,9 @@ final RouteObserver<ModalRoute<void>> routeObserver =
 // Background message handler
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  }
   print('Handling a background message: ${message.messageId}');
   print('Message data: ${message.data}');
 }
@@ -40,7 +44,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Hide system navigation and status bars at app startup
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  }
 
   // Set background message handler
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
@@ -92,9 +98,7 @@ class BuddyApp extends StatelessWidget {
       navigatorObservers: [routeObserver], // Add route observer
       home: AuthStateHandler(),
       routes: {
-        '/auth-options':
-            (context) =>
-                const AuthOptionsPage(), // New route for Authentication Options
+        '/auth-options': (context) => const AuthOptionsPage(),
         '/phone-verification':
             (context) =>
                 PhoneVerificationPage(), // Added route for phone verification
@@ -187,10 +191,14 @@ class AuthStateHandler extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         } else if (snapshot.hasData) {
-          return const SplashScreenWrapper(); // Changed from HomeScreen to SplashScreenWrapper
+          return const SplashScreenWrapper();
         } else {
-          // Show OnboardingScreen first, then navigate to LoginPage
-          return OnboardingScreenWrapper(); // Changed from LandingScreenWrapper
+          // Show LandingPageWeb for web, OnboardingScreenWrapper for others
+          if (kIsWeb) {
+            return const LivoraLandingPage();
+          } else {
+            return OnboardingScreenWrapper();
+          }
         }
       },
     );

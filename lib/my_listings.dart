@@ -7,6 +7,7 @@ import 'display pages/hostelpg_details.dart';
 import 'display pages/service_details.dart';
 import 'display pages/flatmate_details.dart';
 import 'edit_flatmate.dart';
+import 'widgets/action_sheet.dart';
 
 class MyListingsPage extends StatefulWidget {
   const MyListingsPage({Key? key}) : super(key: key);
@@ -437,7 +438,7 @@ class _MyListingsPageState extends State<MyListingsPage>
                   height: 56,
                   child: ElevatedButton(
                     onPressed: () {
-                      // Navigate to create listing page
+                      _showActionSheet(context);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4285F4),
@@ -969,6 +970,35 @@ class _MyListingsPageState extends State<MyListingsPage>
         );
       },
     );
+  }
+
+  void _showActionSheet(BuildContext context) async {
+    final result = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const ActionBottomSheet(),
+    );
+
+    if (result != null && mounted) {
+      // Handle the selected option from action sheet
+      switch (result) {
+        case 0: // Hostel/PG
+          Navigator.pushNamed(context, '/listHostel');
+          break;
+        case 1: // Room
+          Navigator.pushNamed(context, '/listRoom');
+          break;
+        case 2: // Service
+          Navigator.pushNamed(context, '/listService');
+          break;
+        case 3: // Flatmate
+          Navigator.pushNamed(context, '/listFlatmate');
+          break;
+        default:
+          break;
+      }
+    }
   }
 
   Future<void> _deleteListing(Map<String, dynamic> listing) async {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
@@ -43,6 +44,9 @@ class _HostelpgPageState extends State<HostelpgPage> {
 
   List<Map<String, dynamic>> _hostels = [];
   bool _isLoading = true;
+
+  // For web card hover effect
+  int? _hoveredCardIndex;
 
   @override
   void initState() {
@@ -205,28 +209,7 @@ class _HostelpgPageState extends State<HostelpgPage> {
                       ),
                     )
                   else
-                    ..._filteredHostels
-                        .map(
-                          (hostel) => Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: BuddyTheme.spacingMd,
-                            ),
-                            child: _buildHostelCard(
-                              hostel,
-                              cardColor,
-                              borderColor,
-                              textLight,
-                              textPrimary,
-                              textSecondary,
-                              accentColor,
-                              primaryColor,
-                              Theme.of(context).scaffoldBackgroundColor,
-                              successColor,
-                              warningColor,
-                            ),
-                          ),
-                        )
-                        .toList(),
+                    _buildHostelsGrid(),
                   SizedBox(height: BuddyTheme.spacingMd + MediaQuery.of(context).padding.bottom),
                 ],
               ),
@@ -426,6 +409,130 @@ class _HostelpgPageState extends State<HostelpgPage> {
     );
   }
 
+  Widget _buildHostelsGrid() {
+    if (kIsWeb) {
+      const double cardSpacing = 20.0;
+      const int crossAxisCount = 3;
+      final double gridWidth = MediaQuery.of(context).size.width - (BuddyTheme.spacingMd * 2);
+      final double cardSize = (gridWidth - (cardSpacing * (crossAxisCount - 1))) / crossAxisCount;
+      if (_filteredHostels.length < 3) {
+        // Left-align 1 or 2 cards
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: List.generate(_filteredHostels.length, (index) {
+              final hostel = _filteredHostels[index];
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              final Color cardColor = isDark ? const Color(0xFF23262F) : Colors.white;
+              final Color textPrimary = isDark ? Colors.white : const Color(0xFF2D3748);
+              final Color textSecondary = isDark ? Colors.white70 : const Color(0xFF718096);
+              final Color textLight = isDark ? Colors.white38 : const Color(0xFFA0AEC0);
+              final Color borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
+              final Color accentColor = isDark ? const Color(0xFF64B5F6) : const Color(0xFF4299E1);
+              final Color primaryColor = isDark ? const Color(0xFF90CAF9) : const Color(0xFF2D3748);
+              final Color successColor = isDark ? const Color(0xFF81C784) : const Color(0xFF48BB78);
+              final Color warningColor = isDark ? const Color(0xFFFFB74D) : const Color(0xFFED8936);
+              return Padding(
+                padding: EdgeInsets.only(right: index < _filteredHostels.length - 1 ? cardSpacing : 0),
+                child: _buildHostelCard(
+                  hostel,
+                  cardColor,
+                  borderColor,
+                  textLight,
+                  textPrimary,
+                  textSecondary,
+                  accentColor,
+                  primaryColor,
+                  Theme.of(context).scaffoldBackgroundColor,
+                  successColor,
+                  warningColor,
+                  cardSize: cardSize,
+                ),
+              );
+            }),
+          ),
+        );
+      } else {
+        // 3 or more: use grid
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: 320 / 200, // match card width/height
+            crossAxisSpacing: cardSpacing,
+            mainAxisSpacing: cardSpacing,
+          ),
+          itemCount: _filteredHostels.length,
+          itemBuilder: (context, index) {
+            final hostel = _filteredHostels[index];
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final Color cardColor = isDark ? const Color(0xFF23262F) : Colors.white;
+            final Color textPrimary = isDark ? Colors.white : const Color(0xFF2D3748);
+            final Color textSecondary = isDark ? Colors.white70 : const Color(0xFF718096);
+            final Color textLight = isDark ? Colors.white38 : const Color(0xFFA0AEC0);
+            final Color borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
+            final Color accentColor = isDark ? const Color(0xFF64B5F6) : const Color(0xFF4299E1);
+            final Color primaryColor = isDark ? const Color(0xFF90CAF9) : const Color(0xFF2D3748);
+            final Color successColor = isDark ? const Color(0xFF81C784) : const Color(0xFF48BB78);
+            final Color warningColor = isDark ? const Color(0xFFFFB74D) : const Color(0xFFED8936);
+            return _buildHostelCard(
+              hostel,
+              cardColor,
+              borderColor,
+              textLight,
+              textPrimary,
+              textSecondary,
+              accentColor,
+              primaryColor,
+              Theme.of(context).scaffoldBackgroundColor,
+              successColor,
+              warningColor,
+              cardSize: cardSize,
+            );
+          },
+        );
+      }
+    } else {
+      // Mobile layout: single column
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      final Color cardColor = isDark ? const Color(0xFF23262F) : Colors.white;
+      final Color textPrimary = isDark ? Colors.white : const Color(0xFF2D3748);
+      final Color textSecondary = isDark ? Colors.white70 : const Color(0xFF718096);
+      final Color textLight = isDark ? Colors.white38 : const Color(0xFFA0AEC0);
+      final Color borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
+      final Color accentColor = isDark ? const Color(0xFF64B5F6) : const Color(0xFF4299E1);
+      final Color primaryColor = isDark ? const Color(0xFF90CAF9) : const Color(0xFF2D3748);
+      final Color successColor = isDark ? const Color(0xFF81C784) : const Color(0xFF48BB78);
+      final Color warningColor = isDark ? const Color(0xFFFFB74D) : const Color(0xFFED8936);
+      return Column(
+        children: _filteredHostels
+            .map(
+              (hostel) => Padding(
+                padding: const EdgeInsets.only(
+                  bottom: BuddyTheme.spacingMd,
+                ),
+                child: _buildHostelCard(
+                  hostel,
+                  cardColor,
+                  borderColor,
+                  textLight,
+                  textPrimary,
+                  textSecondary,
+                  accentColor,
+                  primaryColor,
+                  Theme.of(context).scaffoldBackgroundColor,
+                  successColor,
+                  warningColor,
+                ),
+              ),
+            )
+            .toList(),
+      );
+    }
+  }
+
   Widget _buildHostelCard(
     Map<String, dynamic> hostel,
     Color cardColor,
@@ -438,107 +545,184 @@ class _HostelpgPageState extends State<HostelpgPage> {
     Color backgroundColor,
     Color successColor,
     Color warningColor,
+    {double? cardSize}
   ) {
+    final isWeb = kIsWeb;
+    if (isWeb && cardSize != null) {
+      // Web: Zomato-style card, only title and address, clickable, pop-out on hover
+      final double cardWidth = 320.0;
+      final double imageHeight = 140.0;
+      final int cardIndex = hostel['key']?.hashCode ?? 0;
+      return MouseRegion(
+        onEnter: (_) => setState(() => _hoveredCardIndex = cardIndex),
+        onExit: (_) => setState(() => _hoveredCardIndex = null),
+        child: GestureDetector(
+          onTap: () {
+            Navigator.pushNamed(
+              context,
+              '/hostelpg_details',
+              arguments: {'hostelId': hostel['key']},
+            );
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            transform: _hoveredCardIndex == cardIndex
+                ? (Matrix4.identity()..scale(1.04))
+                : Matrix4.identity(),
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.12),
+                  blurRadius: _hoveredCardIndex == cardIndex ? 32 : 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            width: cardWidth,
+            margin: const EdgeInsets.only(bottom: 32.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(18),
+                    topRight: Radius.circular(18),
+                  ),
+                  child: CachedNetworkImage(
+                    imageUrl: hostel['imageUrl'] ?? '',
+                    height: imageHeight,
+                    width: cardWidth,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Shimmer.fromColors(
+                      baseColor: borderColor,
+                      highlightColor: cardColor,
+                      child: Container(color: borderColor, height: imageHeight, width: cardWidth),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: borderColor,
+                      height: imageHeight,
+                      width: cardWidth,
+                      child: Icon(
+                        Icons.image_not_supported_outlined,
+                        color: textLight,
+                        size: 40,
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        hostel['title'] ?? '',
+                        style: TextStyle(
+                          fontSize: 17.0,
+                          fontWeight: FontWeight.w700,
+                          color: textPrimary,
+                          height: 1.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4.0),
+                      Text(
+                        hostel['address'] ?? '',
+                        style: TextStyle(
+                          fontSize: 13.0,
+                          color: textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    // ... existing code ...
+    // fallback return for all code paths
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildHostelPlaceholderCard() {
+    // Optimized sizes for web and mobile
+    final isWeb = kIsWeb;
+    final double imageHeight = isWeb ? 140.0 : 240.0;
+    final double padding = isWeb ? 16.0 : 20.0;
+    final double titleHeight = isWeb ? 18.0 : 22.0;
+    final double addressHeight = isWeb ? 14.0 : 18.0;
+    final double buttonHeight = isWeb ? 36.0 : 44.0;
+    final double spacing = isWeb ? 6.0 : 10.0;
+    final double buttonSpacing = isWeb ? 12.0 : 18.0;
+
     return Container(
       decoration: BoxDecoration(
-        color: cardColor,
+        color: const Color(0xFF23262F),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: Colors.white12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
-                child: CachedNetworkImage(
-                  imageUrl: hostel['imageUrl'] ?? '',
-                  height: 220,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  placeholder:
-                      (context, url) => Shimmer.fromColors(
-                        baseColor: borderColor,
-                        highlightColor: cardColor,
-                        child: Container(color: borderColor),
-                      ),
-                  errorWidget:
-                      (context, url, error) => Container(
-                        color: borderColor,
-                        child: Icon(
-                          Icons.image_not_supported_outlined,
-                          color: textLight,
-                          size: 48,
-                        ),
-                      ),
-                ),
+          // Placeholder image
+          Container(
+            height: imageHeight,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white12,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
               ),
-            ],
+            ),
+            child: Icon(
+              Icons.image_outlined,
+              color: Colors.white38,
+              size: isWeb ? 40 : 56,
+            ),
           ),
+          // Placeholder content
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(padding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  hostel['title'] ?? '',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: textPrimary,
-                    height: 1.2,
+                Container(
+                  height: titleHeight,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white12,
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  hostel['address'] ?? '',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: textSecondary,
-                    fontWeight: FontWeight.w500,
+                SizedBox(height: spacing),
+                Container(
+                  height: addressHeight,
+                  width: 150,
+                  decoration: BoxDecoration(
+                    color: Colors.white12,
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/hostelpg_details',
-                            arguments: {'hostelId': hostel['key']},
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: accentColor,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text(
-                          'View Details',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                SizedBox(height: buttonSpacing),
+                Container(
+                  height: buttonHeight,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white12,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ],
             ),

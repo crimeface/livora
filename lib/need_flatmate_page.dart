@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -48,6 +49,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
 
   List<Map<String, dynamic>> _flatmates = [];
   bool _isLoading = true;
+  int? _hoveredFlatmateCardIndex;
 
   @override
   void initState() {
@@ -173,7 +175,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                     labelColor,
                   ),
                   const SizedBox(height: BuddyTheme.spacingSm),
-                  ..._buildFlatmateListings(context, cardColor, labelColor),
+                  _buildFlatmateGrid(context, cardColor, labelColor),
                   SizedBox(height: MediaQuery.of(context).padding.bottom),
                 ],
               ),
@@ -368,54 +370,297 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
     );
   }
 
-  List<Widget> _buildFlatmateListings(
+  Widget _buildFlatmateGrid(
     BuildContext context,
     Color cardColor,
     Color labelColor,
   ) {
     if (_isLoading) {
-      return [
-        const Center(child: CircularProgressIndicator(color: Colors.white)),
-      ];
+      return const Center(child: CircularProgressIndicator(color: Colors.white));
     }
     if (_filteredFlatmates.isEmpty) {
-      return [
-        Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Text(
-              "No flatmates found.",
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.white.withOpacity(0.7),
-                fontWeight: FontWeight.w500,
-              ),
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Text(
+            "No flatmates found.",
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.white.withOpacity(0.7),
+              fontWeight: FontWeight.w500,
             ),
           ),
         ),
-      ];
+      );
     }
-    return _filteredFlatmates
-        .map(
-          (flatmate) => Column(
-            children: [
-              _buildFlatmateCard(context, flatmate, cardColor, labelColor),
-              const SizedBox(height: BuddyTheme.spacingMd),
-            ],
+
+    if (kIsWeb) {
+      const double cardSpacing = 20.0;
+      const int crossAxisCount = 3;
+      final double gridWidth = MediaQuery.of(context).size.width - (BuddyTheme.spacingMd * 2);
+      final double cardSize = (gridWidth - (cardSpacing * (crossAxisCount - 1))) / crossAxisCount;
+      if (_filteredFlatmates.length < 3) {
+        // Left-align 1 or 2 cards
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: List.generate(_filteredFlatmates.length, (index) {
+              final flatmate = _filteredFlatmates[index];
+              return Padding(
+                padding: EdgeInsets.only(right: index < _filteredFlatmates.length - 1 ? cardSpacing : 0),
+                child: _buildFlatmateCardWeb(context, flatmate, index, cardSize),
+              );
+            }),
           ),
-        )
-        .toList();
+        );
+      } else {
+        // 3 or more: use grid
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: 320 / 200,
+            crossAxisSpacing: cardSpacing,
+            mainAxisSpacing: cardSpacing,
+          ),
+          itemCount: _filteredFlatmates.length,
+          itemBuilder: (context, index) {
+            final flatmate = _filteredFlatmates[index];
+            return _buildFlatmateCardWeb(context, flatmate, index, cardSize);
+          },
+        );
+      }
+    } else {
+      // Mobile layout: single column
+      return Column(
+        children: _filteredFlatmates
+            .map(
+              (flatmate) => Column(
+                children: [
+                  _buildFlatmateCard(context, flatmate, cardColor, labelColor),
+                  const SizedBox(height: BuddyTheme.spacingMd),
+                ],
+              ),
+            )
+            .toList(),
+      );
+    }
   }
 
-  Widget _buildFlatmateCard(
-    BuildContext context,
-    Map<String, dynamic> flatmate,
-    Color cardColor,
-    Color labelColor,
-  ) {
-    final Color accentColor = const Color(0xFF64B5F6);
+  Widget _buildFlatmateCardWeb(BuildContext context, Map<String, dynamic> flatmate, int index, double cardSize) {
+    final double cardWidth = 420.0;
+    final double padding = 16.0;
+    final double avatarRadius = 35.0;
+    final double titleFontSize = 20.0;
+    final double subtitleFontSize = 15.0;
+    final double locationFontSize = 14.0;
+    final double iconSize = 20.0;
+    final double infoBoxHeight = 44.0;
+    final double infoBoxRadius = 16.0;
+    final double infoBoxSpacing = 12.0;
+    final double buttonFontSize = 16.0;
+    final double buttonPadding = 14.0;
+    final String? imageUrl = flatmate['profilePhotoUrl'] as String?;
+    final String name = (flatmate['name'] ?? '').toString();
+    final String age = (flatmate['age'] ?? '').toString();
+    final String occupation = (flatmate['occupation'] ?? '').toString();
+    final String location = (flatmate['location'] ?? flatmate['preferredLocation'] ?? '').toString();
+    final String budget = (flatmate['budgetRange'] ?? flatmate['budget'] ?? '').toString();
+    final String moveIn = (flatmate['moveInDate'] ?? '').toString();
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hoveredFlatmateCardIndex = index),
+      onExit: (_) => setState(() => _hoveredFlatmateCardIndex = null),
+      child: GestureDetector(
+        onTap: () {
+          // TODO: Implement navigation to flatmate details if needed
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          transform: _hoveredFlatmateCardIndex == index ? (Matrix4.identity()..scale(1.04)) : Matrix4.identity(),
+          decoration: BoxDecoration(
+            color: const Color(0xFF23262F),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.12),
+                blurRadius: _hoveredFlatmateCardIndex == index ? 32 : 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          width: cardWidth,
+          margin: const EdgeInsets.only(bottom: 32.0),
+          child: Padding(
+            padding: EdgeInsets.all(padding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header with photo and basic info
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: avatarRadius,
+                      backgroundColor: Colors.white12,
+                      backgroundImage: imageUrl != null && imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                      child: imageUrl == null || imageUrl.isEmpty
+                          ? Icon(Icons.person_outline, color: Colors.white38, size: avatarRadius)
+                          : null,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: titleFontSize,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            '$age • $occupation',
+                            style: TextStyle(
+                              fontSize: subtitleFontSize,
+                              color: Colors.white.withOpacity(0.7),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(Icons.location_on, color: Colors.white.withOpacity(0.7), size: iconSize),
+                              const SizedBox(width: 4),
+                              Text(
+                                location,
+                                style: TextStyle(
+                                  fontSize: locationFontSize,
+                                  color: Colors.white.withOpacity(0.7),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: infoBoxHeight,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF232B3A),
+                          borderRadius: BorderRadius.circular(infoBoxRadius),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'Budget Range',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              budget,
+                              style: const TextStyle(
+                                color: Color(0xFF4F8CFF),
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Container(
+                        height: infoBoxHeight,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E2C25),
+                          borderRadius: BorderRadius.circular(infoBoxRadius),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'Move-in Date',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              moveIn,
+                              style: const TextStyle(
+                                color: Color(0xFF3DDC97),
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // TODO: Implement navigation to flatmate details if needed
+                    },
+                    icon: const Icon(Icons.remove_red_eye, color: Colors.white),
+                    label: const Text(
+                      'View Details',
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF64B5F6),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14.0),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFlatmatePlaceholderCard() {
     return Container(
-      decoration: BuddyTheme.cardDecoration.copyWith(color: cardColor),
+      decoration: BoxDecoration(
+        color: const Color(0xFF23262F),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white12),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(BuddyTheme.spacingMd),
         child: Column(
@@ -426,6 +671,133 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
               children: [
                 CircleAvatar(
                   radius: 35,
+                  backgroundColor: Colors.white12,
+                  child: Icon(
+                    Icons.person_outline,
+                    color: Colors.white38,
+                    size: BuddyTheme.iconSizeLg,
+                  ),
+                ),
+                const SizedBox(width: BuddyTheme.spacingMd),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        height: 20,
+                        width: 120,
+                        decoration: BoxDecoration(
+                          color: Colors.white12,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 16,
+                        width: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.white12,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: BuddyTheme.spacingMd),
+            // Budget and Move-in info
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.white12,
+                      borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: BuddyTheme.spacingXs),
+                Expanded(
+                  child: Container(
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.white12,
+                      borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: BuddyTheme.spacingMd),
+            // Bio placeholder
+            Container(
+              height: 16,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white12,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: BuddyTheme.spacingSm),
+            Container(
+              height: 16,
+              width: 200,
+              decoration: BoxDecoration(
+                color: Colors.white12,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: BuddyTheme.spacingMd),
+            // Button placeholder
+            Container(
+              height: 40,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white12,
+                borderRadius: BorderRadius.circular(BuddyTheme.borderRadiusSm),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFlatmateCard(
+    BuildContext context,
+    Map<String, dynamic> flatmate,
+    Color cardColor,
+    Color labelColor,
+  ) {
+    // Optimized sizes for web and mobile
+    final isWeb = kIsWeb;
+    final double padding = isWeb ? 16.0 : 20.0;
+    final double avatarRadius = isWeb ? 30.0 : 35.0;
+    final double titleFontSize = isWeb ? 18.0 : 22.0;
+    final double subtitleFontSize = isWeb ? 14.0 : 16.0;
+    final double locationFontSize = isWeb ? 12.0 : 14.0;
+    final double buttonFontSize = isWeb ? 14.0 : 16.0;
+    final double buttonPadding = isWeb ? 10.0 : 14.0;
+    final double spacing = isWeb ? 6.0 : 10.0;
+    final double buttonSpacing = isWeb ? 12.0 : 18.0;
+    final double iconSize = isWeb ? 16.0 : 20.0;
+    final double badgePadding = isWeb ? 6.0 : 8.0;
+    
+    final Color accentColor = const Color(0xFF64B5F6);
+    return Container(
+      decoration: BuddyTheme.cardDecoration.copyWith(color: cardColor),
+      child: Padding(
+        padding: EdgeInsets.all(padding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with photo and basic info
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: avatarRadius,
                   backgroundColor: cardColor,
                   backgroundImage:
                       flatmate['profilePhotoUrl'] != null
@@ -436,11 +808,11 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                           ? Icon(
                             Icons.person,
                             color: Colors.white,
-                            size: BuddyTheme.iconSizeLg,
+                            size: isWeb ? 24 : 28,
                           )
                           : null,
                 ),
-                const SizedBox(width: BuddyTheme.spacingMd),
+                SizedBox(width: spacing),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -448,7 +820,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                       Text(
                         flatmate['name'] ?? 'No Name',
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: titleFontSize,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
@@ -456,23 +828,23 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                       Text(
                         '${flatmate['age'] ?? ''} • ${flatmate['occupation'] ?? ''}',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: subtitleFontSize,
                           color: Colors.white.withOpacity(0.7),
                         ),
                       ),
-                      const SizedBox(height: BuddyTheme.spacingXs),
+                      SizedBox(height: spacing / 2),
                       Row(
                         children: [
                           Icon(
                             Icons.location_on,
                             color: Colors.white.withOpacity(0.7),
-                            size: BuddyTheme.iconSizeSm,
+                            size: iconSize,
                           ),
-                          const SizedBox(width: BuddyTheme.spacingXxs),
+                          SizedBox(width: spacing / 2),
                           Text(
                             flatmate['location'] ?? '',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: locationFontSize,
                               color: Colors.white.withOpacity(0.7),
                             ),
                           ),
