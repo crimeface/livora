@@ -548,6 +548,33 @@ class _HostelpgPageState extends State<HostelpgPage> {
     {double? cardSize}
   ) {
     final isWeb = kIsWeb;
+    
+    // Get the image URL with fallback logic (same as room page)
+    String? imageUrl = hostel['imageUrl'] as String?;
+    if (imageUrl == null || imageUrl.isEmpty) {
+      // Try to extract from uploadedPhotos if imageUrl is not available
+      if (hostel['uploadedPhotos'] != null) {
+        final photos = hostel['uploadedPhotos'];
+        if (photos is Map<String, dynamic>) {
+          // New format with categories
+          if (photos.containsKey('Building Front')) {
+            imageUrl = photos['Building Front'].toString();
+          } else if (photos.isNotEmpty) {
+            // Get first available photo
+            for (final categoryPhotos in photos.values) {
+              if (categoryPhotos is List && categoryPhotos.isNotEmpty) {
+                imageUrl = categoryPhotos[0].toString();
+                break;
+              }
+            }
+          }
+        } else if (photos is List && photos.isNotEmpty) {
+          // Old format - direct list of photos
+          imageUrl = photos[0].toString();
+        }
+      }
+    }
+    
     if (isWeb && cardSize != null) {
       // Web: Zomato-style card, only title and address, clickable, pop-out on hover
       final double cardWidth = 320.0;
@@ -591,27 +618,38 @@ class _HostelpgPageState extends State<HostelpgPage> {
                     topLeft: Radius.circular(18),
                     topRight: Radius.circular(18),
                   ),
-                  child: CachedNetworkImage(
-                    imageUrl: hostel['imageUrl'] ?? '',
-                    height: imageHeight,
-                    width: cardWidth,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Shimmer.fromColors(
-                      baseColor: borderColor,
-                      highlightColor: cardColor,
-                      child: Container(color: borderColor, height: imageHeight, width: cardWidth),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: borderColor,
-                      height: imageHeight,
-                      width: cardWidth,
-                      child: Icon(
-                        Icons.image_not_supported_outlined,
-                        color: textLight,
-                        size: 40,
-                      ),
-                    ),
-                  ),
+                  child: imageUrl != null && imageUrl.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: imageUrl,
+                          height: imageHeight,
+                          width: cardWidth,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Shimmer.fromColors(
+                            baseColor: borderColor,
+                            highlightColor: cardColor,
+                            child: Container(color: borderColor, height: imageHeight, width: cardWidth),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: borderColor,
+                            height: imageHeight,
+                            width: cardWidth,
+                            child: Icon(
+                              Icons.image_not_supported_outlined,
+                              color: textLight,
+                              size: 40,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          color: borderColor,
+                          height: imageHeight,
+                          width: cardWidth,
+                          child: Icon(
+                            Icons.image_not_supported_outlined,
+                            color: textLight,
+                            size: 40,
+                          ),
+                        ),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
@@ -649,10 +687,207 @@ class _HostelpgPageState extends State<HostelpgPage> {
           ),
         ),
       );
+    } else {
+      // Mobile layout: full card with details
+      final double imageHeight = 240.0;
+      final double padding = 20.0;
+      final double titleFontSize = 22.0;
+      final double priceFontSize = 20.0;
+      final double addressFontSize = 16.0;
+      final double buttonFontSize = 16.0;
+      final double buttonPadding = 14.0;
+      final double spacing = 10.0;
+      final double buttonSpacing = 18.0;
+      final double iconSize = 20.0;
+      final double badgePadding = 8.0;
+
+      return Container(
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image section with availability badge
+            Stack(
+              children: [
+                // Property image
+                if (imageUrl != null && imageUrl.isNotEmpty)
+                  ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      height: imageHeight,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        height: imageHeight,
+                        color: borderColor,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: accentColor,
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        height: imageHeight,
+                        color: borderColor,
+                        child: Icon(
+                          Icons.image_not_supported_outlined,
+                          color: textLight,
+                          size: 56,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    height: imageHeight,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: borderColor,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: Icon(Icons.image, color: textLight, size: 56),
+                  ),
+
+                // Available Now badge
+                Positioned(
+                  left: 12,
+                  bottom: 12,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: badgePadding,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: successColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Available Now',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            // Content section
+            Padding(
+              padding: EdgeInsets.all(padding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title and price row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          hostel['title'] ?? '',
+                          style: TextStyle(
+                            fontSize: titleFontSize,
+                            fontWeight: FontWeight.w700,
+                            color: textPrimary,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '₹${hostel['startingAt'] ?? 'N/A'}',
+                        style: TextStyle(
+                          fontSize: priceFontSize,
+                          fontWeight: FontWeight.w700,
+                          color: accentColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: spacing),
+
+                  // Address
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: iconSize,
+                        color: textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          hostel['address'] ?? hostel['location'] ?? '',
+                          style: TextStyle(
+                            fontSize: addressFontSize,
+                            color: textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: buttonSpacing),
+
+                  // Action buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/hostelpg_details',
+                              arguments: {'hostelId': hostel['key']},
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: accentColor,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(vertical: buttonPadding),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: Text(
+                            'View Details',
+                            style: TextStyle(
+                              fontSize: buttonFontSize,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
     }
-    // ... existing code ...
-    // fallback return for all code paths
-    return const SizedBox.shrink();
   }
 
   Widget _buildHostelPlaceholderCard() {

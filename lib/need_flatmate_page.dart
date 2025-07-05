@@ -457,7 +457,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
     final double subtitleFontSize = 15.0;
     final double locationFontSize = 14.0;
     final double iconSize = 20.0;
-    final double infoBoxHeight = 44.0;
+    final double infoBoxHeight = 54.0;
     final double infoBoxRadius = 16.0;
     final double infoBoxSpacing = 12.0;
     final double buttonFontSize = 16.0;
@@ -467,14 +467,39 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
     final String age = (flatmate['age'] ?? '').toString();
     final String occupation = (flatmate['occupation'] ?? '').toString();
     final String location = (flatmate['location'] ?? flatmate['preferredLocation'] ?? '').toString();
-    final String budget = (flatmate['budgetRange'] ?? flatmate['budget'] ?? '').toString();
-    final String moveIn = (flatmate['moveInDate'] ?? '').toString();
+    String budget = '';
+    if (flatmate['minBudget'] != null && flatmate['maxBudget'] != null) {
+      budget = '₹${flatmate['minBudget']} - ₹${flatmate['maxBudget']}';
+    } else if (flatmate['budgetRange'] != null) {
+      budget = flatmate['budgetRange'].toString();
+    } else if (flatmate['budget'] != null) {
+      budget = '₹${flatmate['budget']}';
+    }
+
+    String moveIn = '';
+    final moveInRaw = flatmate['moveInDate'];
+    if (moveInRaw != null) {
+      if (moveInRaw is Timestamp) {
+        moveIn = _formatDate(moveInRaw.toDate());
+      } else if (moveInRaw is DateTime) {
+        moveIn = _formatDate(moveInRaw);
+      } else if (moveInRaw is String) {
+        final parsed = DateTime.tryParse(moveInRaw);
+        if (parsed != null) {
+          moveIn = _formatDate(parsed);
+        } else {
+          moveIn = moveInRaw;
+        }
+      } else {
+        moveIn = moveInRaw.toString();
+      }
+    }
     return MouseRegion(
       onEnter: (_) => setState(() => _hoveredFlatmateCardIndex = index),
       onExit: (_) => setState(() => _hoveredFlatmateCardIndex = null),
       child: GestureDetector(
         onTap: () {
-          // TODO: Implement navigation to flatmate details if needed
+          _viewFlatmateDetails(flatmate);
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
@@ -574,6 +599,8 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                             const SizedBox(height: 1),
                             Text(
                               budget,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Color(0xFF4F8CFF),
                                 fontSize: 15,
@@ -608,6 +635,8 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                             const SizedBox(height: 1),
                             Text(
                               moveIn,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Color(0xFF3DDC97),
                                 fontSize: 15,
@@ -625,7 +654,7 @@ class _NeedFlatmatePageState extends State<NeedFlatmatePage> {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      // TODO: Implement navigation to flatmate details if needed
+                      _viewFlatmateDetails(flatmate);
                     },
                     icon: const Icon(Icons.remove_red_eye, color: Colors.white),
                     label: const Text(

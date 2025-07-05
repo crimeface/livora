@@ -1294,7 +1294,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Contact Information',
+          'Listed By',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
             color: textPrimary,
@@ -1311,11 +1311,20 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              _buildContactItem(Icons.phone, serviceData.contact),
-              _buildContactItem(Icons.email, serviceData.email),
+              CircleAvatar(
+                backgroundColor: BuddyTheme.primaryColor.withOpacity(0.1),
+                child: Icon(Icons.person, color: BuddyTheme.primaryColor),
+              ),
+              const SizedBox(width: BuddyTheme.spacingMd),
+              Text(
+                serviceData.serviceName ?? 'Unknown',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: textPrimary,
+                ),
+              ),
             ],
           ),
         ),

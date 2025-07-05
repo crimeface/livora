@@ -687,7 +687,11 @@ class _NeedRoomPageState extends State<NeedRoomPage> with RouteAware {
       onExit: (_) => setState(() => _hoveredRoomCardIndex = null),
       child: GestureDetector(
         onTap: () {
-          // TODO: Implement navigation to room details if needed
+          Navigator.pushNamed(
+            context,
+            '/propertyDetails',
+            arguments: {'propertyId': room['id']},
+          );
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),

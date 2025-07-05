@@ -1205,28 +1205,20 @@ class _HostelDetailsScreenState extends State<HostelDetailsScreen> {
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: BuddyTheme.primaryColor.withOpacity(0.1),
-                    child: Icon(Icons.person, color: BuddyTheme.primaryColor),
-                  ),
-                  const SizedBox(width: BuddyTheme.spacingMd),
-                  Text(
-                    hostelData.contactPerson,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: textPrimary,
-                    ),
-                  ),
-                ],
+              CircleAvatar(
+                backgroundColor: BuddyTheme.primaryColor.withOpacity(0.1),
+                child: Icon(Icons.person, color: BuddyTheme.primaryColor),
               ),
-              const SizedBox(height: BuddyTheme.spacingMd),
-              _buildContactItem(Icons.phone, hostelData.phone),
-              _buildContactItem(Icons.email, hostelData.email),
+              const SizedBox(width: BuddyTheme.spacingMd),
+              Text(
+                hostelData.contactPerson,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: textPrimary,
+                ),
+              ),
             ],
           ),
         ),
